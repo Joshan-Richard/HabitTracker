@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Uplift - Daily Habit Tracker</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 400px;
+            margin: 0 auto;
+            min-height: 100vh;
+            background: white;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Splash Screen */
+        .splash-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            z-index: 1000;
+            animation: fadeOut 0.5s ease-out 2.5s forwards;
+        }
+
+        .splash-logo {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            animation: bounce 1s ease-in-out infinite alternate;
+        }
+
+        .splash-title {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+            text-align: center;
+        }
+
+        .splash-tagline {
+            font-size: 1.1rem;
+            font-style: italic;
+            opacity: 0.9;
+            text-align: center;
+            padding: 0 2rem;
+        }
+
+        @keyframes bounce {
+            0% { transform: translateY(0); }
+            100% { transform: translateY(-10px); }
+        }
+
+        @keyframes fadeOut {
+            to {
+                opacity: 0;
+                visibility: hidden;
+            }
+        }
+
+        /* Main Content */
+        .main-content {
+            opacity: 0;
+            animation: fadeIn 0.5s ease-in 3s forwards;
+        }
+
+        @keyframes fadeIn {
+            to { opacity: 1; }
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-align: center;
+            padding: 2rem 1rem 1rem;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .header .tagline {
+            font-style: italic;
+            opacity: 0.9;
+        }
+
+        .back-btn {
+            position: absolute;
+            top: 1rem;
+            left: 1rem;
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 0.5rem;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.2rem;
+            transition: background 0.3s;
+        }
+
+        .back-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .content {
+            padding: 2rem 1rem;
+        }
+
+        /* Home Page */
+        .session-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .session-btn {
+            background: white;
+            border: 2px solid #e1e5e9;
+            border-radius: 12px;
+            padding: 1.5rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            font-size: 1.1rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .session-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+        }
+
+        .session-btn.completed {
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            color: white;
+            border-color: #4CAF50;
+        }
+
+        .session-btn.disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .session-icon {
+            font-size: 2rem;
+        }
+
+        .session-info h3 {
+            margin-bottom: 0.3rem;
+        }
+
+        .session-info p {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .session-btn.completed .session-info p {
+            color: rgba(255,255,255,0.8);
+        }
+
+        /* Session Page */
+        .session-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .session-title {
+            font-size: 1.8rem;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .session-time {
+            color: #ffffff;
+            font-size: 0.9rem;
+        }
+
+        .habits-list {
+            margin-bottom: 2rem;
+        }
+
+        .habit-item {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 0.8rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .habit-item.completed {
+            background: #e8f5e8;
+            border-left: 4px solid #4CAF50;
+        }
+
+        .habit-checkbox {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+
+        .habit-checkbox:disabled {
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+
+        .habit-text {
+            flex: 1;
+            font-size: 1rem;
+        }
+
+        .habit-item.completed .habit-text {
+            text-decoration: line-through;
+            color: #666;
+        }
+
+        .add-habit-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 1rem;
+            width: 100%;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: transform 0.2s;
+            margin-bottom: 1rem;
+        }
+
+        .add-habit-btn:hover {
+            transform: translateY(-1px);
+        }
+
+        /* Removed disabled styles to always allow habit planning */
+
+        .custom-habit-input {
+            width: 100%;
+            padding: 0.8rem;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            font-size: 1rem;
+        }
+
+        .custom-habit-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .session-status {
+            text-align: center;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            font-weight: bold;
+        }
+
+        .session-status.active {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .session-status.expired {
+            background: #ffebee;
+            color: #d32f2f;
+        }
+
+        .session-status.future {
+            background: #f3e5f5;
+            color: #7b1fa2;
+        }
+
+        /* Feedback Page */
+        .feedback-container {
+            text-align: center;
+        }
+
+        .feedback-badge {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+        }
+
+        .feedback-title {
+            font-size: 1.8rem;
+            margin-bottom: 1rem;
+            color: #fefbfb;
+        }
+
+        .feedback-stats {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+            font-size: 1.1rem;
+        }
+
+        .stat-item:last-child {
+            margin-bottom: 0;
+            font-weight: bold;
+            border-top: 1px solid #dee2e6;
+            padding-top: 1rem;
+        }
+
+        .feedback-quote {
+            font-style: italic;
+            color: #666;
+            margin-bottom: 2rem;
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+
+        .home-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 1rem 2rem;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: transform 0.2s;
+        }
+
+        .home-btn:hover {
+            transform: translateY(-1px);
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .time-indicator {
+            font-size: 0.8rem;
+            color: #666;
+            margin-top: 1rem;
+            text-align: center;
+        }
+
+        /* Drag and Drop Styles */
+        .habit-item {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 0.8rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            transition: all 0.3s ease;
+            cursor: grab;
+            position: relative;
+        }
+
+        .habit-item:active {
+            cursor: grabbing;
+        }
+
+        .habit-item.dragging {
+            opacity: 0.5;
+            transform: rotate(5deg);
+            z-index: 1000;
+        }
+
+        .habit-item.completed {
+            background: #e8f5e8;
+            border-left: 4px solid #4CAF50;
+        }
+
+        .delete-zone {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80px;
+            height: 80px;
+            background: #ff4444;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            color: white;
+            box-shadow: 0 4px 20px rgba(255, 68, 68, 0.3);
+            transition: all 0.3s ease;
+            opacity: 0;
+            visibility: hidden;
+            z-index: 999;
+        }
+
+        .delete-zone.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .delete-zone.drag-over {
+            background: #ff6666;
+            transform: translateX(-50%) scale(1.2);
+            box-shadow: 0 6px 30px rgba(255, 68, 68, 0.5);
+        }
+
+        .drag-instruction {
+            text-align: center;
+            color: #666;
+            font-size: 0.9rem;
+            margin-top: 1rem;
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Splash Screen -->
+        <div class="splash-screen" id="splashScreen">
+            <div class="splash-logo">🚀</div>
+            <div class="splash-title">Uplift</div>
+            <div class="splash-tagline">Where consistency builds character</div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content" id="mainContent">
+            <!-- Home Page -->
+            <div id="homePage">
+                <div class="header">
+                    <h1>Uplift</h1>
+                    <p class="tagline">Where consistency builds character</p>
+                </div>
+                <div class="content">
+                    <div class="session-grid" id="sessionGrid">
+                        <!-- Session buttons will be generated here -->
+                    </div>
+                    <div class="time-indicator" id="timeIndicator"></div>
+                </div>
+            </div>
+
+            <!-- Session Pages -->
+            <div id="sessionPage" class="hidden">
+                <div class="header">
+                    <button class="back-btn" onclick="showHome()">←</button>
+                    <div class="session-header">
+                        <h2 class="session-title" id="sessionTitle"></h2>
+                        <p class="session-time" id="sessionTime"></p>
+                    </div>
+                </div>
+                <div class="content">
+                    <div class="session-status" id="sessionStatus"></div>
+                    <div class="habits-list" id="habitsList"></div>
+                    <button class="add-habit-btn" id="addHabitBtn" onclick="toggleCustomHabit()">➕ Add Custom Habit</button>
+                    <input type="text" class="custom-habit-input hidden" id="customHabitInput" placeholder="Enter your custom habit..." onkeypress="handleCustomHabitKeypress(event)">
+                </div>
+            </div>
+
+            <!-- Feedback Page -->
+            <div id="feedbackPage" class="hidden">
+                <div class="header">
+                    <button class="back-btn" onclick="showHome()">←</button>
+                    <h1>Daily Summary</h1>
+                </div>
+                <div class="content">
+                    <div class="feedback-container">
+                        <div class="feedback-badge" id="feedbackBadge">🎉</div>
+                        <h2 class="feedback-title" id="feedbackTitle">Great job today!</h2>
+                        <div class="feedback-stats" id="feedbackStats"></div>
+                        <div class="feedback-quote" id="feedbackQuote"></div>
+                        <button class="home-btn" onclick="showHome()">Return Home</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Delete Zone -->
+        <div class="delete-zone" id="deleteZone">
+            🗑️
+        </div>
+    </div>
+
+    <script>
+        // Session configuration
+        const sessions = [
+            { id: 'morning', name: 'Morning', icon: '☀️', start: 5, end: 8, habits: ['Drink water', 'Stretch 5 mins', 'Read a quote'] },
+            { id: 'midmorning', name: 'Mid-Morning', icon: '🌤️', start: 8, end: 12, habits: ['Check emails', 'Plan the day', 'Take a walk'] },
+            { id: 'afternoon', name: 'Afternoon', icon: '🌞', start: 12, end: 16, habits: ['Eat healthy lunch', 'Take a break', 'Stay hydrated'] },
+            { id: 'evening', name: 'Evening', icon: '🌆', start: 16, end: 20, habits: ['Review daily progress', 'Exercise 15 mins', 'Connect with family'] },
+            { id: 'night', name: 'Night', icon: '🌙', start: 20, end: 23, habits: ['Journal for 5 minutes', 'Plan tomorrow\'s top task', 'Turn off screens 30 mins before sleep'] }
+        ];
+
+        // App state
+        let habitData = {};
+        let currentSession = null;
+        let draggedHabit = null;
+
+        // Initialize app
+        function initApp() {
+            loadHabitData();
+            renderSessionGrid();
+            updateTimeIndicator();
+            setInterval(updateTimeIndicator, 60000); // Update every minute
+            setupDeleteZone();
+            
+            // Hide splash after 3 seconds
+            setTimeout(() => {
+                document.getElementById('splashScreen').style.display = 'none';
+            }, 3000);
+        }
+
+        // Load habit data from localStorage
+        function loadHabitData() {
+            const saved = localStorage.getItem('uplift-habits');
+            const today = new Date().toDateString();
+            
+            if (saved) {
+                const data = JSON.parse(saved);
+                if (data.date === today) {
+                    habitData = data.habits;
+                    return;
+                }
+            }
+            
+            // Initialize with default habits for new day
+            habitData = {};
+            sessions.forEach(session => {
+                habitData[session.id] = session.habits.map((habit, index) => ({
+                    id: `${session.id}-${index}`,
+                    text: habit,
+                    completed: false,
+                    isDefault: true
+                }));
+            });
+            saveHabitData();
+        }
+
+        // Save habit data to localStorage
+        function saveHabitData() {
+            const data = {
+                date: new Date().toDateString(),
+                habits: habitData
+            };
+            localStorage.setItem('uplift-habits', JSON.stringify(data));
+        }
+
+        // Get current hour
+        function getCurrentHour() {
+            return new Date().getHours();
+        }
+
+        // Check if session is active, expired, or future
+        function getSessionStatus(session) {
+            const currentHour = getCurrentHour();
+            if (currentHour >= session.start && currentHour < session.end) {
+                return 'active';
+            } else if (currentHour >= session.end) {
+                return 'expired';
+            } else {
+                return 'future';
+            }
+        }
+
+        // Check if all habits in session are completed
+        function isSessionCompleted(sessionId) {
+            const habits = habitData[sessionId] || [];
+            return habits.length > 0 && habits.every(habit => habit.completed);
+        }
+
+        // Render session grid on home page
+        function renderSessionGrid() {
+            const grid = document.getElementById('sessionGrid');
+            grid.innerHTML = '';
+
+            sessions.forEach(session => {
+                const status = getSessionStatus(session);
+                const completed = isSessionCompleted(session.id);
+                const btn = document.createElement('div');
+                
+                btn.className = `session-btn ${completed ? 'completed' : ''}`;
+                btn.onclick = () => showSession(session.id);
+                
+                btn.innerHTML = `
+                    <div class="session-icon">${session.icon}</div>
+                    <div class="session-info">
+                        <h3>${session.name}</h3>
+                        <p>${session.start}:00 - ${session.end}:00</p>
+                    </div>
+                `;
+                
+                grid.appendChild(btn);
+            });
+        }
+
+        // Update time indicator
+        function updateTimeIndicator() {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            document.getElementById('timeIndicator').textContent = `Current time: ${timeStr}`;
+        }
+
+        // Show home page
+        function showHome() {
+            document.getElementById('homePage').classList.remove('hidden');
+            document.getElementById('sessionPage').classList.add('hidden');
+            document.getElementById('feedbackPage').classList.add('hidden');
+            renderSessionGrid();
+            checkForDailyCompletion();
+        }
+
+        // Show session page
+        function showSession(sessionId) {
+            currentSession = sessions.find(s => s.id === sessionId);
+            if (!currentSession) return;
+
+            document.getElementById('homePage').classList.add('hidden');
+            document.getElementById('sessionPage').classList.remove('hidden');
+            document.getElementById('feedbackPage').classList.add('hidden');
+
+            renderSessionPage();
+        }
+
+        // Render session page
+        function renderSessionPage() {
+            const status = getSessionStatus(currentSession);
+            
+            // Update header
+            document.getElementById('sessionTitle').innerHTML = 
+                `${currentSession.icon} ${currentSession.name}`;
+            document.getElementById('sessionTime').textContent = 
+                `${currentSession.start}:00 - ${currentSession.end}:00`;
+
+            // Update status
+            const statusEl = document.getElementById('sessionStatus');
+            statusEl.className = `session-status ${status}`;
+            
+            switch(status) {
+                case 'active':
+                    statusEl.textContent = '✅ Session is active - Track your habits!';
+                    break;
+                case 'expired':
+                    statusEl.textContent = '🔒 Session has ended - Habits are locked';
+                    break;
+                case 'future':
+                    statusEl.textContent = '📋 Plan ahead - Add habits for this session!';
+                    break;
+            }
+
+            // Render habits
+            renderHabits();
+
+            // Update add button - allow adding habits even for future sessions
+            const addBtn = document.getElementById('addHabitBtn');
+            addBtn.disabled = false; // Always allow adding habits for planning
+        }
+
+        // Render habits list
+        function renderHabits() {
+            const habitsList = document.getElementById('habitsList');
+            const habits = habitData[currentSession.id] || [];
+            const status = getSessionStatus(currentSession);
+            
+            habitsList.innerHTML = '';
+
+            habits.forEach(habit => {
+                const item = document.createElement('div');
+                item.className = `habit-item ${habit.completed ? 'completed' : ''}`;
+                item.draggable = true;
+                item.dataset.habitId = habit.id;
+                
+                // Add drag event listeners
+                item.addEventListener('dragstart', handleDragStart);
+                item.addEventListener('dragend', handleDragEnd);
+                
+                item.innerHTML = `
+                    <input type="checkbox" class="habit-checkbox" 
+                           ${habit.completed ? 'checked' : ''} 
+                           ${status !== 'active' ? 'disabled' : ''}
+                           onchange="toggleHabit('${habit.id}')"
+                           onclick="event.stopPropagation();">
+                    <span class="habit-text">${habit.text}</span>
+                `;
+                
+                habitsList.appendChild(item);
+            });
+        }
+
+        // Toggle habit completion
+        function toggleHabit(habitId) {
+            const habits = habitData[currentSession.id];
+            const habit = habits.find(h => h.id === habitId);
+            if (habit) {
+                habit.completed = !habit.completed;
+                saveHabitData();
+                renderHabits();
+                renderSessionGrid(); // Update home page buttons
+            }
+        }
+
+        // Toggle custom habit input
+        function toggleCustomHabit() {
+            const input = document.getElementById('customHabitInput');
+            const btn = document.getElementById('addHabitBtn');
+            const status = getSessionStatus(currentSession);
+            
+            if (input.classList.contains('hidden')) {
+                input.classList.remove('hidden');
+                input.focus();
+                btn.textContent = '❌ Cancel';
+                
+                // Update placeholder text based on session status
+                if (status === 'future') {
+                    input.placeholder = 'Plan a habit for this session...';
+                } else {
+                    input.placeholder = 'Enter your custom habit...';
+                }
+            } else {
+                input.classList.add('hidden');
+                input.value = '';
+                btn.innerHTML = '➕ Add Custom Habit';
+            }
+        }
+
+        // Handle custom habit keypress
+        function handleCustomHabitKeypress(event) {
+            if (event.key === 'Enter') {
+                addCustomHabit();
+            }
+        }
+
+        // Add custom habit
+        function addCustomHabit() {
+            const input = document.getElementById('customHabitInput');
+            const text = input.value.trim();
+            
+            if (text) {
+                const habits = habitData[currentSession.id];
+                const newHabit = {
+                    id: `${currentSession.id}-custom-${Date.now()}`,
+                    text: text,
+                    completed: false,
+                    isDefault: false
+                };
+                
+                habits.push(newHabit);
+                saveHabitData();
+                renderHabits();
+                toggleCustomHabit();
+            }
+        }
+
+        // Check if all sessions are completed and show feedback
+        function checkForDailyCompletion() {
+            const allCompleted = sessions.every(session => isSessionCompleted(session.id));
+            
+            if (allCompleted) {
+                setTimeout(() => {
+                    showFeedback();
+                }, 1000);
+            }
+        }
+
+        // Show feedback page
+        function showFeedback() {
+            document.getElementById('homePage').classList.add('hidden');
+            document.getElementById('sessionPage').classList.add('hidden');
+            document.getElementById('feedbackPage').classList.remove('hidden');
+            
+            renderFeedback();
+        }
+
+        // Render feedback page
+        function renderFeedback() {
+            let totalHabits = 0;
+            let completedHabits = 0;
+            
+            sessions.forEach(session => {
+                const habits = habitData[session.id] || [];
+                totalHabits += habits.length;
+                completedHabits += habits.filter(h => h.completed).length;
+            });
+            
+            const percentage = Math.round((completedHabits / totalHabits) * 100);
+            
+            // Update badge and title
+            const badge = document.getElementById('feedbackBadge');
+            const title = document.getElementById('feedbackTitle');
+            
+            if (percentage === 100) {
+                badge.textContent = '🏆';
+                title.textContent = 'Perfect Day!';
+            } else if (percentage >= 80) {
+                badge.textContent = '🎉';
+                title.textContent = 'Excellent Progress!';
+            } else if (percentage >= 60) {
+                badge.textContent = '👏';
+                title.textContent = 'Good Effort!';
+            } else {
+                badge.textContent = '💪';
+                title.textContent = 'Keep Growing!';
+            }
+            
+            // Update stats
+            const stats = document.getElementById('feedbackStats');
+            stats.innerHTML = `
+                <div class="stat-item">
+                    <span>Habits Completed:</span>
+                    <span>${completedHabits}</span>
+                </div>
+                <div class="stat-item">
+                    <span>Total Habits:</span>
+                    <span>${totalHabits}</span>
+                </div>
+                <div class="stat-item">
+                    <span>Success Rate:</span>
+                    <span>${percentage}%</span>
+                </div>
+            `;
+            
+            // Update quote
+            const quotes = [
+                "Success is the sum of small efforts repeated day in and day out.",
+                "Excellence is not an act, but a habit.",
+                "We are what we repeatedly do.",
+                "Small steps lead to big changes.",
+                "Consistency is the mother of mastery."
+            ];
+            
+            const quote = quotes[Math.floor(Math.random() * quotes.length)];
+            document.getElementById('feedbackQuote').textContent = `"${quote}"`;
+        }
+
+        // Drag and Drop Functions
+        function handleDragStart(e) {
+            draggedHabit = e.target.dataset.habitId;
+            e.target.classList.add('dragging');
+            document.getElementById('deleteZone').classList.add('show');
+        }
+
+        function handleDragEnd(e) {
+            e.target.classList.remove('dragging');
+            document.getElementById('deleteZone').classList.remove('show', 'drag-over');
+            draggedHabit = null;
+        }
+
+        function setupDeleteZone() {
+            const deleteZone = document.getElementById('deleteZone');
+            
+            deleteZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                deleteZone.classList.add('drag-over');
+            });
+            
+            deleteZone.addEventListener('dragleave', (e) => {
+                deleteZone.classList.remove('drag-over');
+            });
+            
+            deleteZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                deleteZone.classList.remove('drag-over');
+                
+                if (draggedHabit) {
+                    deleteHabit(draggedHabit);
+                }
+            });
+        }
+
+        function deleteHabit(habitId) {
+            const habits = habitData[currentSession.id];
+            const habitIndex = habits.findIndex(h => h.id === habitId);
+            
+            if (habitIndex !== -1) {
+                const habit = habits[habitIndex];
+                
+                // Show confirmation for default habits
+                if (habit.isDefault) {
+                    if (!confirm(`Are you sure you want to delete the default habit "${habit.text}"? You can't undo this action.`)) {
+                        return;
+                    }
+                }
+                
+                // Remove the habit
+                habits.splice(habitIndex, 1);
+                saveHabitData();
+                renderHabits();
+                renderSessionGrid(); // Update home page in case session completion status changed
+                
+                // Show success feedback
+                showDeleteFeedback();
+            }
+        }
+
+        function showDeleteFeedback() {
+            const deleteZone = document.getElementById('deleteZone');
+            deleteZone.innerHTML = '✅';
+            deleteZone.style.background = '#4CAF50';
+            
+            setTimeout(() => {
+                deleteZone.innerHTML = '🗑️';
+                deleteZone.style.background = '#ff4444';
+            }, 1000);
+        }
+
+        // Initialize app when DOM is loaded
+        document.addEventListener('DOMContentLoaded', initApp);
+    </script>
+</body>
+</html>
