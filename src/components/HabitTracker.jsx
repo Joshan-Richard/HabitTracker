@@ -13,9 +13,9 @@ const HabitTracker = ({ tasks, completions, onAddTask, onDeleteTask, onToggleCom
     const [newTaskNotifTime, setNewTaskNotifTime] = useState('');
     const [pastDays, setPastDays] = useState(INITIAL_PAST_DAYS);
     const [isLoadingMore, setIsLoadingMore] = useState(false);
+    const isLoadingMoreRef = useRef(false);
 
     const gridContainerRef = useRef(null);
-    const sentinelRef = useRef(null);
 
     // ─── Date generation (dynamic based on pastDays) ──────────────────────────
     const dates = useMemo(() => {
@@ -40,46 +40,35 @@ const HabitTracker = ({ tasks, completions, onAddTask, onDeleteTask, onToggleCom
         return result;
     }, [pastDays]);
 
-    // ─── IntersectionObserver: load more past days when sentinel is visible ───
+    // ─── Scroll-based backward loading ───────────────────────────────────────
     useEffect(() => {
-        const sentinel = sentinelRef.current;
-        if (!sentinel) return;
+        const container = gridContainerRef.current;
+        if (!container) return;
 
-        const observer = new IntersectionObserver(
-            (entries) => {
-                if (entries[0].isIntersecting && !isLoadingMore) {
-                    setIsLoadingMore(true);
+        const handleScroll = () => {
+            if (container.scrollLeft < 250 && !isLoadingMoreRef.current) {
+                isLoadingMoreRef.current = true;
+                setIsLoadingMore(true);
 
-                    // Capture current scroll width & position BEFORE state update
-                    const container = gridContainerRef.current;
-                    const prevScrollWidth = container ? container.scrollWidth : 0;
-                    const prevScrollLeft = container ? container.scrollLeft : 0;
+                const prevScrollWidth = container.scrollWidth;
+                const prevScrollLeft = container.scrollLeft;
 
-                    setPastDays(prev => prev + LOAD_MORE_DAYS);
+                setPastDays(prev => prev + LOAD_MORE_DAYS);
 
-                    // After React re-renders, restore scroll position offset by
-                    // the newly added column widths so view doesn't jump
+                requestAnimationFrame(() => {
                     requestAnimationFrame(() => {
-                        requestAnimationFrame(() => {
-                            if (container) {
-                                const addedWidth = container.scrollWidth - prevScrollWidth;
-                                container.scrollLeft = prevScrollLeft + addedWidth;
-                            }
-                            setIsLoadingMore(false);
-                        });
+                        const addedWidth = container.scrollWidth - prevScrollWidth;
+                        container.scrollLeft = prevScrollLeft + addedWidth;
+                        isLoadingMoreRef.current = false;
+                        setIsLoadingMore(false);
                     });
-                }
-            },
-            {
-                root: gridContainerRef.current,
-                threshold: 0.1,
-                rootMargin: '0px 0px 0px 200px'
+                });
             }
-        );
+        };
 
-        observer.observe(sentinel);
-        return () => observer.disconnect();
-    }, [isLoadingMore, dates]);
+        container.addEventListener('scroll', handleScroll, { passive: true });
+        return () => container.removeEventListener('scroll', handleScroll);
+    }, []);
 
     // Scroll to "today" column on first mount
     useEffect(() => {
@@ -177,18 +166,10 @@ const HabitTracker = ({ tasks, completions, onAddTask, onDeleteTask, onToggleCom
                     <div className="tracker-grid">
                         {/* ── Header Row ── */}
                         <div className="grid-header">
-                            {/* Load-more sentinel — at the very left of the header */}
-                            <div className="load-more-sentinel" ref={sentinelRef}>
-                                {isLoadingMore && (
-                                    <div className="load-more-spinner">
-                                        <span className="spinner-dot" />
-                                        <span className="spinner-dot" />
-                                        <span className="spinner-dot" />
-                                    </div>
-                                )}
+                            <div className="grid-cell task-header">
+                                Task
+                                {isLoadingMore && <span className="loading-dots"><span/><span/><span/></span>}
                             </div>
-
-                            <div className="grid-cell task-header">Task</div>
 
                             {dates.map((dateObj, idx) => (
                                 <div
@@ -230,9 +211,6 @@ const HabitTracker = ({ tasks, completions, onAddTask, onDeleteTask, onToggleCom
                                                         {...provided.draggableProps}
                                                         className={`grid-row ${task.type} ${snapshot.isDragging ? 'dragging' : ''}`}
                                                     >
-                                                        {/* Sentinel spacer cell to match load-more-sentinel width */}
-                                                        <div className="load-more-sentinel sentinel-spacer" />
-
                                                         <div className="grid-cell task-cell">
                                                             <div className="drag-handle" {...provided.dragHandleProps}>
                                                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
