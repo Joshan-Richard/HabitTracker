@@ -1,6 +1,5 @@
-// Firebase Configuration and Initialization
 import { initializeApp } from 'firebase/app';
-import { getFirestore, enableIndexedDbPersistence } from 'firebase/firestore';
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore';
 import { getMessaging, getToken, onMessage } from 'firebase/messaging';
 import { getStorage } from 'firebase/storage';
 
@@ -18,22 +17,15 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
-// Initialize Firestore with offline persistence
-const db = getFirestore(app);
+// Initialize Firestore with persistent cache (multi-tab support)
+const db = initializeFirestore(app, {
+  cache: persistentLocalCache({
+    tabManager: persistentMultipleTabManager()
+  })
+});
 
 // Initialize Storage
 const storage = getStorage(app);
-
-// Enable offline persistence
-enableIndexedDbPersistence(db).catch((err) => {
-  if (err.code === 'failed-precondition') {
-    // Multiple tabs open, persistence can only be enabled in one tab at a time.
-    // This is expected behavior in multi-tab usage.
-    console.info('Firestore persistence enabled in another tab');
-  } else if (err.code === 'unimplemented') {
-    console.warn('The current browser does not support offline persistence.');
-  }
-});
 
 // Initialize Firebase Cloud Messaging
 let messaging = null;
