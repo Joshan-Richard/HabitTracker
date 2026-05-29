@@ -1,137 +1,139 @@
 // Service Worker for HabitFlow PWA
-const CACHE_NAME = 'habitflow-v1';
+const CACHE_NAME = 'habitflow-v3';
 const STATIC_ASSETS = [
     '/',
     '/index.html',
-    '/manifest.json'
+    '/manifest.json',
+    '/icons/icon-192.png',
+    '/icons/icon-512.png'
 ];
 
-// Install event - cache static assets
+// ── URLs that should NEVER be cached or intercepted ──────────────────────────
+const SKIP_URLS = [
+    'firestore.googleapis.com',
+    'firebase.googleapis.com',
+    'firebaseio.com',
+    'googleapis.com',
+    'google.com/images',
+    'chrome-extension',
+    'localhost:5173/__vite',   // vite HMR websocket / dev internals
+    'ws://',
+    'wss://'
+];
+
+function shouldSkip(url) {
+    return SKIP_URLS.some(pattern => url.includes(pattern));
+}
+
+// ── Install: pre-cache static shell ──────────────────────────────────────────
 self.addEventListener('install', (event) => {
     event.waitUntil(
-        caches.open(CACHE_NAME).then((cache) => {
-            return cache.addAll(STATIC_ASSETS);
-        })
+        caches.open(CACHE_NAME)
+            .then(cache => cache.addAll(STATIC_ASSETS))
+            .catch(err => console.warn('[SW] Pre-cache failed:', err))
     );
     self.skipWaiting();
 });
 
-// Activate event - clean old caches
+// ── Activate: delete old caches ───────────────────────────────────────────────
 self.addEventListener('activate', (event) => {
     event.waitUntil(
-        caches.keys().then((cacheNames) => {
-            return Promise.all(
-                cacheNames
-                    .filter((name) => name !== CACHE_NAME)
-                    .map((name) => caches.delete(name))
-            );
-        })
+        caches.keys().then(keys =>
+            Promise.all(
+                keys
+                    .filter(name => name !== CACHE_NAME)
+                    .map(name => caches.delete(name))
+            )
+        )
     );
     self.clients.claim();
 });
 
-// Fetch event - serve from cache, fallback to network
+// ── Fetch: stale-while-revalidate for static, network-only for API ────────────
 self.addEventListener('fetch', (event) => {
-    // Skip non-GET requests
-    if (event.request.method !== 'GET') return;
+    const { request } = event;
+    const url = request.url;
 
-    // Skip Chrome extensions
-    if (event.request.url.includes('chrome-extension')) return;
+    // Only handle GET
+    if (request.method !== 'GET') return;
+
+    // Skip anything that should not be intercepted
+    if (shouldSkip(url)) return;
+
+    // Skip opaque cross-origin requests that aren't from our origin
+    const isOwnOrigin = url.startsWith(self.location.origin);
+    const isCdnFont   = url.includes('fonts.gstatic.com') || url.includes('fonts.googleapis.com');
+
+    if (!isOwnOrigin && !isCdnFont) return;
 
     event.respondWith(
-        caches.match(event.request).then((cachedResponse) => {
-            // Return cached response if available
-            if (cachedResponse) {
-                // Fetch and cache new version in background
-                fetch(event.request).then((response) => {
-                    if (response.ok) {
-                        caches.open(CACHE_NAME).then((cache) => {
-                            cache.put(event.request, response);
-                        });
+        caches.match(request).then(cached => {
+            // Stale-while-revalidate: return cache immediately, update in background
+            const networkFetch = fetch(request)
+                .then(response => {
+                    // Only cache valid same-origin or basic responses
+                    if (response && response.ok && (response.type === 'basic' || response.type === 'cors')) {
+                        const clone = response.clone();
+                        caches.open(CACHE_NAME)
+                            .then(cache => cache.put(request, clone))
+                            .catch(() => {}); // silently ignore cache write errors
                     }
+                    return response;
+                })
+                .catch(() => {
+                    // Network failed — if we have cached version return it
+                    if (cached) return cached;
+                    // For navigation, return the app shell
+                    if (request.mode === 'navigate') {
+                        return caches.match('/');
+                    }
+                    // Otherwise let it fail naturally (no 503 spam)
+                    return new Response('', { status: 408, statusText: 'Network timeout' });
                 });
-                return cachedResponse;
-            }
 
-            // Fetch from network
-            return fetch(event.request).then((response) => {
-                // Cache successful responses
-                if (response.ok && (event.request.url.startsWith('http') || event.request.url.startsWith('https'))) {
-                    const responseClone = response.clone();
-                    caches.open(CACHE_NAME).then((cache) => {
-                        try {
-                            if (responseClone && responseClone.type === 'basic' && (event.request.url.startsWith('http') || event.request.url.startsWith('https'))) {
-                                cache.put(event.request, responseClone).catch(err => {
-                                    // Suppress specific cache errors
-                                    console.debug('Cache put failed:', err);
-                                });
-                            }
-                        } catch (err) {
-                            console.warn('Failed to cache response:', err);
-                        }
-                    });
-                }
-                return response;
-            }).catch(() => {
-                // Return offline page for navigation requests
-                if (event.request.mode === 'navigate') {
-                    return caches.match('/');
-                }
-                return new Response('Offline', { status: 503 });
-            });
+            return cached || networkFetch;
         })
     );
 });
 
-// Push notification event
+// ── Push notifications ────────────────────────────────────────────────────────
 self.addEventListener('push', (event) => {
     const data = event.data?.json() || {};
     const title = data.title || 'HabitFlow';
     const options = {
         body: data.body || 'You have a notification',
         icon: '/icons/icon-192.png',
-        badge: '/icons/icon-72.png',
+        badge: '/icons/icon-192.png',
         vibrate: [100, 50, 100],
         data: data.data || {},
         actions: [
-            { action: 'view', title: 'View' },
+            { action: 'view',    title: 'View'    },
             { action: 'dismiss', title: 'Dismiss' }
         ]
     };
-
     event.waitUntil(self.registration.showNotification(title, options));
 });
 
-// Notification click event
+// ── Notification click ────────────────────────────────────────────────────────
 self.addEventListener('notificationclick', (event) => {
     event.notification.close();
-
     if (event.action === 'dismiss') return;
 
     event.waitUntil(
-        clients.matchAll({ type: 'window' }).then((clientList) => {
-            // Focus existing window if available
+        clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clientList => {
             for (const client of clientList) {
-                if (client.url.includes(self.location.origin) && 'focus' in client) {
+                if (client.url.startsWith(self.location.origin) && 'focus' in client) {
                     return client.focus();
                 }
             }
-            // Open new window
-            if (clients.openWindow) {
-                return clients.openWindow('/');
-            }
+            if (clients.openWindow) return clients.openWindow('/');
         })
     );
 });
 
-// Background sync for offline completions
+// ── Background sync ───────────────────────────────────────────────────────────
 self.addEventListener('sync', (event) => {
     if (event.tag === 'sync-completions') {
-        event.waitUntil(syncCompletions());
+        event.waitUntil(Promise.resolve()); // Firebase handles its own sync
     }
 });
-
-async function syncCompletions() {
-    // Sync logic would go here when using Firebase
-    console.log('Syncing completions...');
-}

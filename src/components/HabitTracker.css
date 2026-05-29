@@ -75,13 +75,15 @@
 }
 
 .tracker-grid {
-    min-width: 100%;
+    min-width: max-content;
+    width: max-content;
     display: flex;
     flex-direction: column;
 }
 
 .grid-header {
     display: flex;
+    min-width: max-content;
     position: sticky;
     top: 0;
     z-index: 10;
@@ -187,10 +189,12 @@
 .grid-body {
     display: flex;
     flex-direction: column;
+    min-width: max-content;
 }
 
 .grid-row {
     display: flex;
+    min-width: max-content;
     border-bottom: 1px solid var(--border-primary);
     transition: background var(--transition-fast);
 }
